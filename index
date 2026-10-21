@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>점프 러시</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="game-container">
+    <h1>JUMP RUSH</h1>
+    <p>스페이스바 또는 클릭으로 점프!</p>
+
+    <canvas id="gameCanvas" width="800" height="350"></canvas>
+
+    <div class="controls">
+      <button id="startBtn">게임 시작</button>
+      <button id="jumpBtn">점프!</button>
+    </div>
+
+    <p id="message">게임 시작 버튼을 눌러 봐!</p>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
