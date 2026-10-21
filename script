@@ -1,0 +1,285 @@
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const startBtn = document.getElementById("startBtn");
+const jumpBtn = document.getElementById("jumpBtn");
+const message = document.getElementById("message");
+
+const groundY = 300;
+
+let player;
+let obstacles;
+let score;
+let speed;
+let spawnTimer;
+let running = false;
+let gameOver = false;
+let animationId;
+
+function resetGame() {
+  player = {
+    x: 100,
+    y: groundY - 40,
+    width: 35,
+    height: 40,
+    vy: 0,
+    jumping: false
+  };
+
+  obstacles = [];
+  score = 0;
+  speed = 10;
+  spawnTimer = 35;
+  running = true;
+  gameOver = false;
+
+  message.textContent = "장애물을 피해 달려!";
+  startBtn.textContent = "다시 시작";
+
+  cancelAnimationFrame(animationId);
+  gameLoop();
+}
+
+function jump() {
+  if (!running || gameOver) return;
+
+  if (!player.jumping) {
+    player.vy = -13;
+    player.jumping = true;
+  }
+}
+
+function createObstacle() {
+  const types = [
+    { type: "spike", width: 30, height: 35 },
+    { type: "block", width: 35, height: 45 },
+    { type: "wall", width: 28, height: 65 },
+    { type: "drone", width: 42, height: 22 },
+    { type: "doubleSpike", width: 60, height: 35 }
+  ];
+
+  const selected =
+    types[Math.floor(Math.random() * types.length)];
+
+  let y = groundY - selected.height;
+
+  // 드론은 공중에 배치
+  if (selected.type === "drone") {
+    y = groundY - 85 - Math.random() * 35;
+  }
+
+  obstacles.push({
+    ...selected,
+    x: canvas.width,
+    y: y
+  });
+}
+
+function update() {
+  if (!running || gameOver) return;
+
+  // 플레이어 점프 물리
+  player.vy += 0.65;
+  player.y += player.vy;
+
+  if (player.y + player.height >= groundY) {
+    player.y = groundY - player.height;
+    player.vy = 0;
+    player.jumping = false;
+  }
+
+  // 시간이 지날수록 속도 증가
+  speed = Math.min(200, 10 + score / 200);
+
+  // 장애물 생성 간격
+  spawnTimer--;
+
+  if (spawnTimer <= 0) {
+    createObstacle();
+
+    spawnTimer = Math.max(
+      30,
+      72 - speed * 2.2 + Math.random() * 24
+    );
+  }
+
+  // 장애물 이동 및 충돌 검사
+  for (const obstacle of obstacles) {
+    obstacle.x -= speed;
+
+    const hit =
+      player.x < obstacle.x + obstacle.width &&
+      player.x + player.width > obstacle.x &&
+      player.y < obstacle.y + obstacle.height &&
+      player.y + player.height > obstacle.y;
+
+    if (hit) {
+      gameOver = true;
+      running = false;
+      message.textContent = `게임 오버! 점수: ${Math.floor(score)}`;
+      break;
+    }
+  }
+
+  obstacles = obstacles.filter(
+    obstacle => obstacle.x + obstacle.width > 0
+  );
+
+  score += 0.05 * speed;
+}
+
+function draw() {
+  // 하늘 배경
+  ctx.fillStyle = "#dff7ff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // 땅
+  ctx.fillStyle = "#5bb85b";
+  ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+  // 땅 위 선
+  ctx.fillStyle = "#368d43";
+  ctx.fillRect(0, groundY, canvas.width, 5);
+
+  // 플레이어
+  ctx.fillStyle = "#2878ff";
+  ctx.fillRect(
+    player.x,
+    player.y,
+    player.width,
+    player.height
+  );
+
+  // 플레이어 눈
+  ctx.fillStyle = "white";
+  ctx.fillRect(player.x + 23, player.y + 8, 6, 6);
+
+  
+  // 장애물 종류별 그리기
+  for (const obstacle of obstacles) {
+    const x = obstacle.x;
+    const y = obstacle.y;
+    const w = obstacle.width;
+    const h = obstacle.height;
+
+    if (obstacle.type === "spike") {
+      // 삼각형 가시
+      ctx.fillStyle = "#ff4242";
+      ctx.beginPath();
+      ctx.moveTo(x, y + h);
+      ctx.lineTo(x + w / 2, y);
+      ctx.lineTo(x + w, y + h);
+      ctx.closePath();
+      ctx.fill();
+
+    } else if (obstacle.type === "block") {
+      // 네모 블록
+      ctx.fillStyle = "#ff8c42";
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#ffc078";
+      ctx.fillRect(x + 5, y + 5, w - 10, 7);
+
+    } else if (obstacle.type === "wall") {
+      // 높은 벽
+      ctx.fillStyle = "#9b59b6";
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#d7a9ef";
+      ctx.fillRect(x + 5, y + 5, w - 10, 8);
+
+    } else if (obstacle.type === "drone") {
+      // 날아다니는 드론
+      ctx.fillStyle = "#303846";
+      ctx.fillRect(x + 8, y + 5, w - 16, h - 10);
+
+      ctx.fillStyle = "#ff5252";
+      ctx.fillRect(x, y, 12, 5);
+      ctx.fillRect(x + w - 12, y, 12, 5);
+
+      ctx.fillStyle = "#54e5ff";
+      ctx.fillRect(x + w / 2 - 3, y + 6, 6, 6);
+
+    } else if (obstacle.type === "doubleSpike") {
+      // 가시 두 개
+      ctx.fillStyle = "#ff4242";
+
+      for (let i = 0; i < 2; i++) {
+        const sx = x + i * 30;
+
+        ctx.beginPath();
+        ctx.moveTo(sx, y + h);
+        ctx.lineTo(sx + 15, y);
+        ctx.lineTo(sx + 30, y + h);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+
+
+  // 점수
+  ctx.fillStyle = "#172033";
+  ctx.font = "bold 22px Arial";
+  ctx.fillText(`SCORE: ${Math.floor(score)}`, 20, 35);
+
+  // 속도
+  ctx.font = "16px Arial";
+  ctx.fillText(`SPEED: ${speed.toFixed(1)}`, 20, 60);
+
+  if (!running && !gameOver) {
+    ctx.fillStyle = "#172033";
+    ctx.font = "bold 28px Arial";
+    ctx.fillText("JUMP RUSH", 320, 150);
+  }
+
+  if (gameOver) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "white";
+    ctx.font = "bold 36px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("GAME OVER", canvas.width / 2, 150);
+
+    ctx.font = "22px Arial";
+    ctx.fillText(
+      `점수: ${Math.floor(score)}`,
+      canvas.width / 2,
+      190
+    );
+    ctx.textAlign = "left";
+  }
+}
+
+function gameLoop() {
+  update();
+  draw();
+
+  if (running) {
+    animationId = requestAnimationFrame(gameLoop);
+  }
+}
+
+startBtn.addEventListener("click", resetGame);
+jumpBtn.addEventListener("click", jump);
+
+document.addEventListener("keydown", event => {
+  if (event.code === "Space" || event.code === "ArrowUp") {
+    event.preventDefault();
+    jump();
+  }
+});
+
+canvas.addEventListener("click", jump);
+
+// 초기 화면
+player = {
+  x: 100,
+  y: groundY - 40,
+  width: 35,
+  height: 40,
+  vy: 0,
+  jumping: false
+};
+
+obstacles = [];
+score = 0;
+draw();
